@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/weather_service.dart';
 
 class WeatherWidget extends StatefulWidget {
@@ -16,10 +17,30 @@ class _WeatherWidgetState extends State<WeatherWidget> {
   @override
   void initState() {
     super.initState();
-    // Default: Tel Aviv coordinates
-    _weatherService.getWeather(32.0853, 34.7818).then((data) {
+    _loadWeather();
+  }
+
+  Future<void> _loadWeather() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        // fallback לתל אביב
+        final data = await _weatherService.getWeather(32.0853, 34.7818);
+        if (mounted) setState(() { _weather = data; _loading = false; });
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition();
+      final data = await _weatherService.getWeather(pos.latitude, pos.longitude);
       if (mounted) setState(() { _weather = data; _loading = false; });
-    });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -41,7 +62,7 @@ class _WeatherWidgetState extends State<WeatherWidget> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('מזג אוויר בתל אביב', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              const Text('מזג אוויר במיקומך', style: TextStyle(color: Colors.white70, fontSize: 12)),
               Text('${_weather!['temp']}°C  •  ${_weather!['description']}',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               Text('רוח: ${_weather!['windspeed']} קמ"ש',

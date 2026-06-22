@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/post.dart';
@@ -5,9 +6,11 @@ import '../models/post.dart';
 class DbService {
   static Database? _db;
 
-  Future<Database> get db async {
+  Future<Database?> get db async {
+    // SQLite לא עובד ב-Web, נחזיר null
+    if (kIsWeb) return null;
     _db ??= await _initDb();
-    return _db!;
+    return _db;
   }
 
   Future<Database> _initDb() async {
@@ -27,7 +30,9 @@ class DbService {
   }
 
   Future<void> addFavorite(Post post) async {
+    if (kIsWeb) return; // ב-Web לא שומרים מועדפים
     final d = await db;
+    if (d == null) return;
     await d.insert('favorites', {
       'id': post.id,
       'userId': post.userId,
@@ -41,12 +46,16 @@ class DbService {
   }
 
   Future<void> removeFavorite(String id) async {
+    if (kIsWeb) return;
     final d = await db;
+    if (d == null) return;
     await d.delete('favorites', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<List<Post>> getFavorites() async {
+    if (kIsWeb) return []; // ב-Web לא מחזירים מועדפים
     final d = await db;
+    if (d == null) return [];
     final maps = await d.query('favorites');
     return maps.map((m) => Post(
       id: m['id'] as String,
@@ -61,7 +70,9 @@ class DbService {
   }
 
   Future<bool> isFavorite(String id) async {
+    if (kIsWeb) return false;
     final d = await db;
+    if (d == null) return false;
     final res = await d.query('favorites', where: 'id = ?', whereArgs: [id]);
     return res.isNotEmpty;
   }
